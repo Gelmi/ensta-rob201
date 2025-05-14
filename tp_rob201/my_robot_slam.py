@@ -46,12 +46,14 @@ class MyRobotSlam(RobotAbstract):
 
         # storage for pose after localization
         self.corrected_pose = np.array([0, 0, 0])
+        self.my_goal_i = 0
+        self.counter = 0
 
     def control(self):
         """
         Main control function executed at each time step
         """
-        return self.control_tp1()
+        return self.control_tp2()
 
     def control_tp1(self):
         """
@@ -69,10 +71,13 @@ class MyRobotSlam(RobotAbstract):
         Control function for TP2
         Main control function with full SLAM, random exploration and path planning
         """
-        pose = self.odometer_values()
-        goal = [0,0,0]
+        self.corrected_pose = self.tiny_slam.get_corrected_pose(self.odometer_values())
+        goal = [[0, -400, 0], [-200, -400, 0], [-190, -200, 0], [-400, 0, 0]]
+        command = {"forward": 0, "rotation": 0}
 
-        # Compute new command speed to perform obstacle avoidance
-        command = potential_field_control(self.lidar(), pose, goal)
-
+        self.tiny_slam.update_map(self.lidar(), self.corrected_pose, goal[self.my_goal_i])
+        best_score = self.tiny_slam.localise(self.lidar(), self.corrected_pose)
+        if(best_score > 1000):
+            command, self.my_goal_i = potential_field_control(self.lidar(), self.corrected_pose, goal, self.my_goal_i)
+        self.counter += 1
         return command

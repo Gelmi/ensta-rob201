@@ -115,6 +115,7 @@ class OccupancyGrid:
 
         # add value to the points
         self.occupancy_map[points[0], points[1]] += val
+        #np.clip(self.occupancy_map, -40, 40)
 
     def add_map_points(self, points_x, points_y, val):
         """
@@ -131,6 +132,7 @@ class OccupancyGrid:
         y_px = y_px[select]
 
         self.occupancy_map[x_px, y_px] += val
+        #np.clip(self.occupancy_map, -40, 40)
 
     def display_plt(self, robot_pose, goal=None, traj=None):
         """
