@@ -161,7 +161,7 @@ class OccupancyGrid:
         # plt.show()
         plt.pause(0.001)
 
-    def display_cv(self, robot_pose, goal=None, traj=None):
+    def display_cv(self, robot_pose, goal=None, traj=None, odom=None, grad=None, obsts=None):
         """
         Screen display of map and robot pose,
         using opencv (faster than the matplotlib version)
@@ -176,6 +176,7 @@ class OccupancyGrid:
 
         if traj is not None:
             traj_map_x, traj_map_y = self.conv_world_to_map(traj[0, :], traj[1, :])
+            # traj_map_x, traj_map_y = traj[0, :], traj[1, :]
             traj_map = np.vstack((traj_map_x, self.y_max_map - traj_map_y))
             for i in range(len(traj_map_x) - 1):
                 cv2.line(img_color, traj_map[:, i], traj_map[:, i + 1], (180, 180, 180), 2)
@@ -185,6 +186,32 @@ class OccupancyGrid:
             point = (int(pt_x), self.y_max_map - int(pt_y))
             color = (255, 255, 255)
             cv2.circle(img_color, point, 3, color, -1)
+
+        if odom is not None:
+            pt_x, pt_y = self.conv_world_to_map(odom[0], odom[1])
+            point = (int(pt_x), self.y_max_map - int(pt_y))
+            color = (255, 0, 255)
+            cv2.circle(img_color, point, 3, color, -1)
+
+        if grad is not None:
+            # print(f"grad: {grad}")
+            pt1_x, pt1_y = self.conv_world_to_map(robot_pose[0], robot_pose[1])
+            grad = robot_pose[:-1] + (grad * 100)
+            pt2_x, pt2_y = self.conv_world_to_map(grad[0], grad[1])
+            pt1 = (int(pt1_x), self.y_max_map - int(pt1_y))
+            pt2 = (int(pt2_x), self.y_max_map - int(pt2_y))
+            cv2.arrowedLine(img=img_color, pt1=pt1, pt2=pt2,
+                            color=(0, 255, 255), thickness=2)
+
+        if obsts is not None:
+            # print(obsts)
+            for obst in obsts:
+                pt1_x, pt1_y = self.conv_world_to_map(robot_pose[0], robot_pose[1])
+                pt2_x, pt2_y = self.conv_world_to_map(obst[0] + robot_pose[0], obst[1] + robot_pose[1])
+                pt1 = (int(pt1_x), self.y_max_map - int(pt1_y))
+                pt2 = (int(pt2_x), self.y_max_map - int(pt2_y))
+                cv2.arrowedLine(img=img_color, pt1=pt1, pt2=pt2,
+                                color=(255, 122, 255), thickness=2)
 
         pt2_x = robot_pose[0] + np.cos(robot_pose[2]) * 20
         pt2_y = robot_pose[1] + np.sin(robot_pose[2]) * 20

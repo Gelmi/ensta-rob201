@@ -38,14 +38,14 @@ class TinySlam:
         """
         Compute corrected pose in map frame from raw odom pose + odom frame pose,
         either given as second param or using the ref from the object
-        odom : raw odometry position
+        odom_pose : raw odometry position
         odom_pose_ref : optional, origin of the odom frame if given,
                         use self.odom_pose_ref if not given
         """
         if odom_pose_ref is None:
             odom_pose_ref = self.odom_pose_ref
 
-        odom_pose_temp = odom_pose
+        odom_pose_temp = odom_pose.copy()
         distance = np.linalg.norm(odom_pose_temp[:-1])
         alpha = np.arctan2(odom_pose_temp[1], odom_pose_temp[0])
         odom_pose_temp[0] = distance * np.cos(odom_pose_ref[2] + alpha)
@@ -59,19 +59,22 @@ class TinySlam:
         lidar : placebot object with lidar data
         odom : [x, y, theta] nparray, raw odometry position
         """
-        N = 100
-        sigma = 0.001
-        offsets = np.random.normal(0, sigma, N)
-        best_random_pose = self.odom_pose_ref
-        best_score = self._score(lidar, self.get_corrected_pose(raw_odom_pose))
-        for offset in offsets:
-            score = self._score(lidar, self.get_corrected_pose(raw_odom_pose, self.odom_pose_ref + offset))
+        i = 0
+        N = 200
+        sigma = 0.2
+        best_random_pose = self.odom_pose_ref.copy()
+        best_score = self._score(lidar, self.get_corrected_pose(raw_odom_pose, best_random_pose))
+        while i < N:
+            # offset = np.random.normal(0, sigma, 3)
+            offset = np.array([np.random.normal(0.0, 1), np.random.normal(0.0, 1), np.random.normal(0.0, 0.15)])
+            score = self._score(lidar, self.get_corrected_pose(raw_odom_pose, best_random_pose + offset))
             if score > best_score:
                 best_score = score
-                best_random_pose = self.odom_pose_ref + offset
-        print(f"best_score: {best_score}")
-        if best_score > 10000:
-            self.odom_pose_ref = best_random_pose
+                best_random_pose = self.odom_pose_ref.copy() + offset
+                i = 0
+            else:
+                i += 1
+        self.odom_pose_ref = best_random_pose.copy()
         return best_score
 
     def unit_vector(self, vector):
@@ -81,7 +84,7 @@ class TinySlam:
         else:
             return np.zeros_like(vector)
 
-    def update_map(self, lidar, pose, goal):
+    def update_map(self, lidar, pose, goal, odom=None, grad=None, traj=None, obsts=None):
         """
         Bayesian map update with new observation
         lidar : placebot object with lidar data
@@ -101,7 +104,7 @@ class TinySlam:
             self.grid.add_value_along_line(x_1, y_1, x_2, y_2, 1)
         self.grid.add_map_points(laser_x, laser_y, 3)
         self.grid.occupancy_map = np.clip(self.grid.occupancy_map, -40, 40)
-        self.grid.display_cv(pose, goal=goal)
+        self.grid.display_cv(pose, goal=goal, odom=odom, traj=traj, grad=grad, obsts=obsts)
 
     def compute(self):
         """ Useless function, just for the exercise on using the profiler """
